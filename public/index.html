@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams Calendar Integration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --teams-purple: #6264A7;
+            --teams-purple-dark: #464775;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background-color: var(--teams-purple) !important;
+        }
+        
+        .btn-teams {
+            background-color: var(--teams-purple);
+            border-color: var(--teams-purple);
+            color: white;
+        }
+        
+        .btn-teams:hover {
+            background-color: var(--teams-purple-dark);
+            border-color: var(--teams-purple-dark);
+            color: white;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .event-card {
+            border-left: 4px solid var(--teams-purple);
+        }
+        
+        .teams-badge {
+            background-color: var(--teams-purple);
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--teams-purple) 0%, var(--teams-purple-dark) 100%);
+            color: white;
+            padding: 60px 0;
+            margin-bottom: 30px;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading .loading-spinner {
+            display: inline-block;
+        }
+        
+        #appointmentForm {
+            display: none;
+        }
+        
+        .auth-required {
+            display: none;
+        }
+        
+        .logged-in .auth-required {
+            display: block;
+        }
+        
+        .logged-in .auth-prompt {
+            display: none;
+        }
+        
+        .meeting-link {
+            word-break: break-all;
+        }
+        
+        /* Calendar Styles */
+        .calendar-table {
+            table-layout: fixed;
+        }
+        
+        .calendar-table th {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .calendar-table td {
+            height: 100px;
+            vertical-align: top;
+            padding: 4px !important;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .calendar-table td:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .calendar-table td.today {
+            background-color: #e8f4ff;
+        }
+        
+        .calendar-table td.selected {
+            background-color: #d4e8ff;
+            border: 2px solid var(--teams-purple);
+        }
+        
+        .calendar-table td.other-month {
+            color: #ccc;
+            background-color: #fafafa;
+        }
+        
+        .day-number {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+        
+        .day-events {
+            font-size: 0.7rem;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+        
+        .day-event {
+            background-color: var(--teams-purple);
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+        
+        .day-event.teams-meeting {
+            background-color: #5b5fc7;
+        }
+        
+        .day-event:hover {
+            opacity: 0.9;
+        }
+        
+        .more-events {
+            color: var(--teams-purple);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        /* Week View Styles */
+        .week-table {
+            table-layout: fixed;
+        }
+        
+        .week-table th {
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 8px 4px !important;
+        }
+        
+        .week-table th.today {
+            background-color: var(--teams-purple);
+            color: white;
+        }
+        
+        .week-table td {
+            vertical-align: top;
+            padding: 4px !important;
+            height: 60px;
+            font-size: 0.75rem;
+        }
+        
+        .week-table .time-label {
+            width: 60px;
+            text-align: right;
+            padding-right: 8px !important;
+            color: #666;
+            font-weight: 500;
+            background-color: #f8f9fa;
+        }
+        
+        .week-event {
+            background-color: var(--teams-purple);
+            color: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .week-event:hover {
+            opacity: 0.9;
+        }
+        
+        /* Day View Styles */
+        .day-view-header {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--teams-purple) 0%, var(--teams-purple-dark) 100%);
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .day-view-header h3 {
+            margin: 0;
+        }
+        
+        .day-view-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .hour-slot {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            min-height: 60px;
+        }
+        
+        .hour-label {
+            width: 70px;
+            padding: 8px;
+            text-align: right;
+            color: #666;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background-color: #f8f9fa;
+            flex-shrink: 0;
+        }
+        
+        .hour-content {
+            flex-grow: 1;
+            padding: 4px 8px;
+            position: relative;
+        }
+        
+        .hour-event {
+            background-color: var(--teams-purple);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .hour-event:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .hour-event.teams-meeting {
+            background: linear-gradient(135deg, #5b5fc7 0%, #464775 100%);
+        }
+        
+        .hour-event .event-time {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+        
+        .hour-event .event-title {
+            font-weight: 600;
+        }
+        
+        .no-events-day {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-microsoft-teams me-2"></i>
+                Teams Calendar
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div id="userInfo" class="d-none align-items-center text-white">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span id="userName"></span>
+                    <a href="/auth/logout" class="btn btn-outline-light btn-sm ms-3">
+                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="authPrompt" class="hero-section auth-prompt">
+        <div class="container text-center">
+            <h1 class="display-4 mb-4">
+                <i class="bi bi-calendar-check me-3"></i>
+                Teams Calendar Integration
+            </h1>
+            <p class="lead mb-4">Link your Microsoft Teams account to create and manage appointments with automatic Teams meeting links.</p>
+            <a href="/auth/login" class="btn btn-light btn-lg">
+                <i class="bi bi-microsoft me-2"></i>
+                Link Microsoft Teams Account
+            </a>
+        </div>
+    </div>
+
+    <div class="container auth-required">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h2><i class="bi bi-calendar-plus me-2"></i>Calendar Manager</h2>
+                    <div class="btn-group">
+                        <button id="syncBtn" class="btn btn-outline-primary" onclick="syncCalendar()">
+                            <i class="bi bi-arrow-repeat me-1"></i>Sync Calendar
+                        </button>
+                        <button id="toggleFormBtn" class="btn btn-teams" onclick="toggleForm()">
+                            <i class="bi bi-plus-lg me-1"></i>New Appointment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Status -->
+        <div id="syncStatus" class="alert alert-info d-none mb-4">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Syncing...</span>
+                </div>
+                <span>Syncing your Microsoft calendar...</span>
+            </div>
+        </div>
+
+        <!-- Sync Info Card -->
+        <div id="syncInfoCard" class="card mb-4 d-none">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1"><i class="bi bi-check-circle-fill text-success me-2"></i>Calendar Synced</h6>
+                        <small class="text-muted">
+                            Last synced: <span id="lastSyncTime">Never</span> | 
+                            <span id="syncedEventCount">0</span> events found
+                        </small>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" onclick="syncCalendar(7)">7 days</button>
+                        <button class="btn btn-outline-secondary" onclick="syncCalendar(30)">30 days</button>
+                        <button class="btn btn-outline-secondary" onclick="syncCalendar(90)">90 days</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Appointment Form -->
+        <div id="appointmentForm" class="card mb-4">
+            <div class="card-body">
+                <form id="createAppointmentForm" onsubmit="createAppointment(event)">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="subject" class="form-label">Meeting Title *</label>
+                            <input type="text" class="form-control" id="subject" required placeholder="Enter meeting title">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startDateTime" class="form-label">Start Date & Time *</label>
+                            <input type="datetime-local" class="form-control" id="startDateTime" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endDateTime" class="form-label">End Date & Time *</label>
+                            <input type="datetime-local" class="form-control" id="endDateTime" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="location" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="location" placeholder="Meeting room or location">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="attendees" class="form-label">Attendees (comma-separated emails)</label>
+                            <input type="text" class="form-control" id="attendees" placeholder="email1@example.com, email2@example.com">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="body" class="form-label">Description</label>
+                        <textarea class="form-control" id="body" rows="3" placeholder="Meeting agenda or description"></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isOnlineMeeting" checked>
+                        <label class="form-check-label" for="isOnlineMeeting">
+                            <i class="bi bi-camera-video me-1"></i>Create Teams Meeting Link
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-teams" id="submitBtn">
+                            <span class="loading-spinner spinner-border spinner-border-sm me-1"></span>
+                            <i class="bi bi-check-lg me-1 submit-icon"></i>
+                            Create Appointment
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="toggleForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Success Alert -->
+        <div id="successAlert" class="alert alert-success d-none" role="alert">
+            <h5><i class="bi bi-check-circle me-2"></i>Appointment Created!</h5>
+            <p id="successMessage"></p>
+            <div id="meetingLinkContainer" class="d-none">
+                <strong>Teams Meeting Link:</strong>
+                <a id="meetingLink" href="#" target="_blank" class="meeting-link d-block"></a>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="alert alert-danger d-none" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span id="errorMessage"></span>
+        </div>
+
+        <!-- Events List -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+                            <i class="bi bi-calendar3 me-1"></i>Upcoming
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="synced-tab" data-bs-toggle="tab" data-bs-target="#synced" type="button" role="tab">
+                            <i class="bi bi-cloud-download me-1"></i>Synced Events <span id="syncBadge" class="badge bg-secondary ms-1 d-none">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="teams-tab" data-bs-toggle="tab" data-bs-target="#teams" type="button" role="tab">
+                            <i class="bi bi-camera-video me-1"></i>Teams Meetings
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Upcoming Events Tab -->
+                    <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+                        <div id="eventsLoading" class="text-center py-4">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading appointments...</p>
+                        </div>
+                        <div id="eventsList"></div>
+                        <div id="noEvents" class="text-center py-4 d-none">
+                            <i class="bi bi-calendar-x display-4 text-muted"></i>
+                            <p class="mt-2 text-muted">No upcoming appointments found</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Synced Events Tab -->
+                    <div class="tab-pane fade" id="synced" role="tabpanel">
+                        <div id="syncedEventsLoading" class="text-center py-4 d-none">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Calendar View -->
+                        <div id="calendarContainer" class="d-none">
+                            <!-- Calendar Controls -->
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="navigateCalendar(-1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="goToToday()">Today</button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="navigateCalendar(1)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <h5 id="currentMonthYear" class="mb-0 flex-grow-1 text-center"></h5>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm active" id="monthViewBtn" onclick="switchView('month')">Month</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="weekViewBtn" onclick="switchView('week')">Week</button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="dayViewBtn" onclick="switchView('day')">Day</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Month View -->
+                            <div id="monthView">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered calendar-table">
+                                        <thead>
+                                            <tr class="text-center bg-light">
+                                                <th>Sun</th>
+                                                <th>Mon</th>
+                                                <th>Tue</th>
+                                                <th>Wed</th>
+                                                <th>Thu</th>
+                                                <th>Fri</th>
+                                                <th>Sat</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="calendarBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Week View -->
+                            <div id="weekView" class="d-none">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered week-table">
+                                        <thead id="weekHeader"></thead>
+                                        <tbody id="weekBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Day View -->
+                            <div id="dayView" class="d-none">
+                                <div id="dayViewContent"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Selected Day Events -->
+                        <div id="selectedDayEvents" class="mt-3 d-none">
+                            <h6 id="selectedDayTitle" class="border-bottom pb-2"></h6>
+                            <div id="selectedDayEventsList"></div>
+                        </div>
+                        
+                        <div id="noSyncedEvents" class="text-center py-4">
+                            <i class="bi bi-cloud-download display-4 text-muted"></i>
+                            <p class="mt-2 text-muted">Click "Sync Calendar" to import your Microsoft calendar events</p>
+                            <button class="btn btn-outline-primary btn-sm" onclick="syncCalendar()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Sync Now
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Teams Meetings Tab -->
+                    <div class="tab-pane fade" id="teams" role="tabpanel">
+                        <div id="teamsMeetingsList"></div>
+                        <div id="noTeamsMeetings" class="text-center py-4">
+                            <i class="bi bi-camera-video display-4 text-muted"></i>
+                            <p class="mt-2 text-muted">No Teams meetings found</p>
+                            <p class="small text-muted">Create an appointment with "Teams Meeting Link" enabled</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+
+    <!-- Event Details Modal -->
+    <div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: var(--teams-purple); color: white;">
+                    <h5 class="modal-title" id="eventDetailModalLabel">
+                        <i class="bi bi-calendar-event me-2"></i>Event Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4 id="modalEventTitle" class="mb-3"></h4>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-clock text-muted me-2" style="width: 20px;"></i>
+                            <div>
+                                <div id="modalEventDate" class="fw-semibold"></div>
+                                <div id="modalEventTime" class="text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="modalLocationSection" class="mb-3 d-none">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-geo-alt text-muted me-2" style="width: 20px;"></i>
+                            <span id="modalEventLocation"></span>
+                        </div>
+                    </div>
+                    
+                    <div id="modalOrganizerSection" class="mb-3 d-none">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person text-muted me-2" style="width: 20px;"></i>
+                            <span id="modalEventOrganizer"></span>
+                        </div>
+                    </div>
+                    
+                    <div id="modalAttendeesSection" class="mb-3 d-none">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-people text-muted me-2" style="width: 20px;"></i>
+                            <div id="modalEventAttendees"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="modalDescriptionSection" class="mb-3 d-none">
+                        <div class="d-flex align-items-start">
+                            <i class="bi bi-text-left text-muted me-2" style="width: 20px;"></i>
+                            <div id="modalEventDescription" class="text-muted small"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="modalBadgesSection" class="mb-3">
+                        <div id="modalEventBadges"></div>
+                    </div>
+                    
+                    <div id="modalTeamsSection" class="d-none">
+                        <hr>
+                        <div class="d-grid">
+                            <a id="modalTeamsLink" href="#" target="_blank" class="btn btn-teams">
+                                <i class="bi bi-camera-video me-1"></i>Join Teams Meeting
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a id="modalOutlookLink" href="#" target="_blank" class="btn btn-outline-secondary d-none">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Open in Outlook
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
