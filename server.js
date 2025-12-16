@@ -53,3 +53,6 @@ app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log('Make sure to configure your .env file with Azure AD credentials');
 });
+
+// Export for Vercel serverless
+module.exports = app;
