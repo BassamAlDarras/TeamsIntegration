@@ -11,6 +11,7 @@ const calendarRoutes = require('./routes/calendar');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.SESSION_SECRET || 'your-secret-key';
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
 // Middleware
 app.use(cors({
@@ -22,13 +23,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Trust proxy for secure cookies behind Vercel's proxy
+if (isProduction) {
+    app.set('trust proxy', 1);
+}
+
 // Session configuration (for local development)
 app.use(session({
     secret: JWT_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
@@ -38,12 +44,15 @@ app.use(session({
 // JWT Cookie middleware - restore session from JWT cookie for serverless
 app.use((req, res, next) => {
     const token = req.cookies?.auth_token;
+    console.log('JWT middleware - token exists:', !!token, 'session accessToken:', !!req.session?.accessToken);
     if (token && !req.session?.accessToken) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);
             req.session.accessToken = decoded.accessToken;
             req.session.user = decoded.user;
+            console.log('JWT middleware - restored session for user:', decoded.user?.email);
         } catch (err) {
+            console.log('JWT middleware - invalid token:', err.message);
             // Invalid token, clear it
             res.clearCookie('auth_token');
         }
@@ -54,9 +63,10 @@ app.use((req, res, next) => {
 // Helper to set auth cookie
 app.setAuthCookie = (res, data) => {
     const token = jwt.sign(data, JWT_SECRET, { expiresIn: '24h' });
+    console.log('Setting auth cookie, isProduction:', isProduction);
     res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
