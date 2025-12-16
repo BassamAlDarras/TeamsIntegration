@@ -51,6 +51,15 @@ router.get('/callback', async (req, res) => {
             id: response.account.homeAccountId
         };
 
+        // Also set JWT cookie for serverless environments
+        const app = req.app;
+        if (app.setAuthCookie) {
+            app.setAuthCookie(res, {
+                accessToken: response.accessToken,
+                user: req.session.user
+            });
+        }
+
         console.log('User authenticated:', req.session.user.email);
         res.redirect('/?success=true');
     } catch (error) {
@@ -61,14 +70,23 @@ router.get('/callback', async (req, res) => {
 
 // Logout endpoint
 router.get('/logout', (req, res) => {
-    const postLogoutRedirectUri = `http://localhost:${process.env.PORT || 3000}`;
+    // Clear JWT cookie
+    const app = req.app;
+    if (app.clearAuthCookie) {
+        app.clearAuthCookie(res);
+    }
+
+    // Get proper redirect URI based on environment
+    const baseUrl = process.env.REDIRECT_URI 
+        ? process.env.REDIRECT_URI.replace('/auth/callback', '')
+        : `http://localhost:${process.env.PORT || 3000}`;
     
     req.session.destroy((err) => {
         if (err) {
             console.error('Error destroying session:', err);
         }
         // Redirect to Microsoft logout
-        const logoutUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
+        const logoutUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(baseUrl)}`;
         res.redirect(logoutUrl);
     });
 });
